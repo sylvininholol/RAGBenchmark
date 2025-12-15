@@ -1,272 +1,108 @@
-# RAG
+# 🚀 Benchmark de Arquiteturas RAG para Notícias Esportivas
 
-Implementação naive de RAG para o TCC. Deepseek API usada para responder aos prompts e OpenAI API usada para gerar embeddings. 
+Este repositório contém a implementação e o *benchmark* de quatro arquiteturas de Geração Aumentada por Recuperação (**RAG**: *Retrieval Augmented Generation*) para um estudo de caso focado em informações factuais e dinâmicas (notícias esportivas). O projeto utiliza containers Docker (PostgreSQL/pgvector e Neo4j) e a API da OpenAI para execução e avaliação.
 
+## 🗃️ Arquitetura do Projeto
 
+O projeto está dividido em quatro pipelines de arquitetura e um módulo de preparação de dados (Scrapping).
 
-## Naive-rag
+| Diretório | Arquitetura | Base de Conhecimento (RK) | Descrição do Pipeline |
+| :--- | :--- | :--- | :--- |
+| `baseline-llm` | **Baseline (LLM Puro)** | PostgreSQL (Apenas Resultados) | O LLM (GPT-3.5-Turbo) responde sem recuperação de contexto, simulando a limitação de conhecimento estático. |
+| `naive-rag` | **Naive RAG** | PostgreSQL (PGVector) | Recuperação simples de `chunks` de texto por similaridade vetorial (`top_k`). |
+| `advanced-rag` | **Advanced RAG** | PostgreSQL (PGVector) | Combina **busca por resumos** de documentos e **re-ranking** dos *chunks* recuperados (Sumarização + Re-ranking). |
+| `graph-rag` | **Graph RAG** | Neo4j (Grafo) e PGSQL | Recuperação híbrida (vetor + entidades) e expansão de contexto via grafo, traduzido para linguagem natural via LLM. |
+| `web-scrapping` | **Dataset & QA Generation**| PostgreSQL (Scrapping DB) | Módulo de coleta de notícias e geração do conjunto de dados de avaliação (P&R Simples, Multi-Contexto e Rejeição Negativa). |
 
-Para executar o naive rag pela primeira vez, no diretório do naive-rag faça:
+---
 
-```bash
-sudo docker compose up
-```
+## ⚙️ Configuração do Ambiente
 
-Após isso:
+### 1. Pré-requisitos
 
-```bash
-python db/db.py
-```
+* **Docker** e **Docker Compose** (Necessário para todos os serviços de banco de dados).
+* **Python** (Versão 3.9+).
+* **Chave da API da OpenAI** (`sk-proj-XXXX...`).
 
-Agora, pode rodar o script de inferencia para testar o llm com acesso ao banco, mas sem o banco populado:
+### 2. Instalação das Dependências Python
 
-```bash
-python inference.py
-```
-
-A resposta deve ser:
-
-
-```bash
-A informação necessária para responder a esta pergunta não foi encontrada nos documentos fornecidos.
-```
-
-Para popular com o exemplo basico do curriculo:
-
+Instale os pacotes listados em `requirements.txt`:
 
 ```bash
-python generate_knowledge_base.py
+pip install -r requirements.txt
 ```
 
-Agora ao repetir o script de inferencia deve receber:
+### 3. Configuração do Arquivo .env
+
+Crie um arquivo chamado **`.env`** na **raiz** do projeto. Ele deve conter as credenciais de conexão para todos os serviços, espelhando as configurações definidas nos arquivos `docker-compose.yml`.
+
+**IMPORTANTE:** Substitua os valores de `POSTGRES_PASSWORD` e `NEO4J_PASSWORD` pelos valores reais que você usará nos seus arquivos `docker-compose.yml`.
+
+| Variável | Valor Exemplo (Baseado no `docker-compose`) | Descrição |
+| :--- | :--- | :--- |
+| `OPENAI_API_KEY` | `sk-proj-SEUVALORAQUI...` | Chave da API para Embeddings e LLMs |
+| **--- Naive RAG (Porta 5432) ---** | | |
+| `PG_HOST` | `127.0.0.1` | Host |
+| `PG_DATABASE` | `tcc_db` | Nome do DB |
+| `PG_USER` | `bancoRAG` | Usuário |
+| `PG_PASSWORD` | `senha123` | **Senha (MUDAR!)** |
+| `PG_PORT` | `5432` | Porta de acesso |
+| **--- Scrapping DB (Porta 5433) ---** | | |
+| `SCRAP_PG_DATABASE` | `wscrap_db` | Nome do DB |
+| `SCRAP_PG_USER` | `wscrap_user` | Usuário |
+| `SCRAP_PG_PASSWORD` | `wscrap_pass` | **Senha (MUDAR!)** |
+| `SCRAP_PG_HOST` | `127.0.0.1` | Host |
+| `SCRAP_PG_PORT` | `5433` | Porta de acesso |
+| **--- Baseline DB (Porta 5430) ---** | | |
+| `BASELINE_PG_DATABASE` | `baseline_db` | Nome do DB |
+| `BASELINE_PG_USER` | `bancoBaseline` | Usuário |
+| `BASELINE_PG_PASSWORD` | `senha123` | **Senha (MUDAR!)** |
+| `BASELINE_PG_HOST` | `127.0.0.1` | Host |
+| `BASELINE_PG_PORT` | `5430` | Porta de acesso |
+| **--- Advanced RAG DB (Porta 5434) ---** | | |
+| `ADV_PG_DATABASE` | `adv_rag_db` | Nome do DB |
+| `ADV_PG_USER` | `adv_rag_user` | Usuário |
+| `ADV_PG_PASSWORD` | `adv_rag_password` | **Senha (MUDAR!)** |
+| `ADV_PG_HOST` | `127.0.0.1` | Host |
+| `ADV_PG_PORT` | `5434` | Porta de acesso |
+| **--- Neo4j (Graph RAG) ---** | | |
+| `NEO4J_URI` | `bolt://127.0.0.1:7687` | URI de conexão |
+| `NEO4J_USER` | `neo4j` | Usuário |
+| `NEO4J_PASSWORD` | `1zc-WQh61g9abEjbDY9WatMXsAsm32HckKL1ikJQf0k` | **Senha (MUDAR!)** |
+| **--- Graph RAG Evaluation DB (Porta 5429) ---** | | |
+| `GRAPH_PG_USER` | `graph_user` | Usuário |
+| `GRAPH_PG_PASSWORD` | `graph_pass` | **Senha (MUDAR!)** |
+| `GRAPH_PG_DATABASE` | `graph_rag_db` | Nome do DB |
+| `GRAPH_PG_HOST` | `localhost` | Host |
+| `GRAPH_PG_PORT` | `5429` | Porta de acesso |
+
+### 4. Inicialização dos Bancos de Dados com Docker
+
+Todos os bancos de dados PostgreSQL (`pgvector`) e o Neo4j devem ser iniciados antes de qualquer script Python ser executado.
+
+#### Iniciar todos os serviços (Naive, Baseline, Advanced e Graph):
+
+Use os comandos abaixo para iniciar os containers de cada arquitetura, conforme configurado nos respectivos `docker-compose.yml`:
 
 ```bash
-Com base no contexto fornecido, a experiência profissional de Gabriel Marinho mencionada é:
+# Inicia Naive RAG (PostgreSQL na Porta 5432)
+cd naive-rag && sudo docker compose up -d
 
-**Software Engineer Intern na IBM Research | Dezembro de 2024 - Presente**
-*   Membro da equipe de inferência do Watsonx, desenvolvendo soluções para inferência de modelos de linguagem grande (LLM) e contribuindo para o projeto de código aberto vLLM.
-*   Possui forte conhecimento da arquitetura Transformers.
-*   Tem experiência na construção de software modular e nas melhores práticas de design de sistemas.
+# Inicia Baseline (PostgreSQL na Porta 5430)
+cd ../baseline-llm && sudo docker compose up -d
+
+# Inicia Advanced RAG (PostgreSQL na Porta 5434)
+cd ../advanced-rag && sudo docker compose up -d
+
+# Inicia Graph RAG (Neo4j: 7687, PostgreSQL de Avaliação: 5429)
+cd ../graph-rag && sudo docker compose up -d
 ```
 
+#### Configurar Índices Vetoriais no Neo4j:
 
+Após iniciar o Neo4j (acessível em `http://localhost:7474`), execute o seguinte Cypher no Neo4j Browser. Este índice é crucial para a recuperação vetorial dos chunks na arquitetura Graph RAG:
 
-
-
-
-
-# Iniciando Neo4j com Docker
-
-Este guia rápido mostra como iniciar uma instância do Neo4j usando Docker e Docker Compose.
-
-## Pré-requisitos
-
-* Docker: [https://docs.docker.com/get-docker/](https://docs.docker.com/get-docker/)
-* Docker Compose: [https://docs.docker.com/compose/install/](https://docs.docker.com/compose/install/)
-
-## Passos
-
-**1. Crie o arquivo `docker-compose.yml`:**
-
-Crie um arquivo chamado `docker-compose.yml` no diretório do seu projeto com o seguinte conteúdo:
-
-```yaml
-version: '3.8'
-
-services:
-  neo4j:
-    image: neo4j:5 # Ou a versão mais recente/específica, ex: neo4j:5.18.1
-    container_name: meu-neo4j
-    ports:
-      - "7474:7474" # Neo4j Browser (HTTP)
-      - "7687:7687" # Bolt (protocolo do driver)
-    volumes:
-      - ./neo4j/data:/data
-      - ./neo4j/logs:/logs
-      - ./neo4j/import:/var/lib/neo4j/import
-      - ./neo4j/plugins:/plugins # Para plugins como APOC
-    environment:
-      NEO4J_AUTH: neo4j/suaSenhaSuperSegura # Mude "suaSenhaSuperSegura"!
-      # Para instalar o plugin APOC automaticamente (opcional):
-      # NEO4J_PLUGINS: '["apoc"]'
-    restart: unless-stopped
-```
-**Importante:** Altere `suaSenhaSuperSegura` para uma senha forte.
-
-**2. Crie os Diretórios Locais (APENAS CASO NAO SEJAM CRIADAS QUANDO RODAR O Neo4j):**
-
-No mesmo diretório do seu `docker-compose.yml`, crie as pastas que serão usadas para os volumes, se ainda não existirem:
-```bash
-mkdir -p ./neo4j/data ./neo4j/logs ./neo4j/import ./neo4j/plugins
-```
-*Se estiver no Linux e for usar `sudo` para Docker, ajuste as permissões da pasta `./neo4j` se necessário:*
-```bash
-# sudo chown -R <span class="math-inline">\(id \-u\)\:</span>(id -g) ./neo4j
-```
-
-**3. Inicie o Neo4j:**
-
-No terminal, no diretório do seu `docker-compose.yml` em graph-rag/, execute:
-```bash
-docker-compose up -d
-```
-*(Use `sudo docker-compose up -d` se o seu usuário não pertencer ao grupo `docker`)*
-
-**4. Acesse o Neo4j Browser:**
-
-Após alguns segundos, abra seu navegador e acesse:
-[http://localhost:7474](http://localhost:7474)
-
-Use as seguintes credenciais para conectar (conforme definido no `docker-compose.yml`):
-* **Usuário:** `neo4j`
-* **Senha:** `suaSenhaSuperSegura` (ou a que você definiu)
-
-## Comandos Úteis do Docker Compose
-
-(Execute no diretório do `docker-compose.yml`)
-
-* **Parar o Neo4j:**
-    ```bash
-    docker-compose stop neo4j
-    ```
-* **Iniciar o Neo4j (após parado):**
-    ```bash
-    docker-compose start neo4j
-    ```
-* **Ver logs:**
-    ```bash
-    docker-compose logs -f neo4j
-    ```
-* **Parar e remover contêineres (dados nos volumes são preservados):**
-    ```bash
-    docker-compose down
-    ```
-* **Parar, remover contêineres E VOLUMES (CUIDADO: apaga os dados do Neo4j se os volumes não forem nomeados externamente):**
-    ```bash
-    # docker-compose down -v
-    ```
-
-
-
-
-
-
-
-
-
-
-# Salvar banco do NEO4J usando um dump
-
-Passos para fazer backup (dump) do banco de dados local para compartilhamento via Git, e como restaurar/atualizar uma instância local a partir de um dump.
-
-## Pré-requisitos
-
-* Docker instalado: [https://docs.docker.com/get-docker/](https://docs.docker.com/get-docker/)
-* Docker Compose instalado: [https://docs.docker.com/compose/install/](https://docs.docker.com/compose/install/)
-
-## Estrutura de Diretórios Esperada
-
-```
-graph-rag/
-├── neo4j/
-│   ├── data/         # (NÃO ADICIONAR AO GIT)
-│   ├── import/       # (ADICIONAR DUMPS AO GIT AQUI)
-│   ├── logs/         # (NÃO ADICIONAR AO GIT)
-│   └── plugins/
-└── docker-compose.yml
-```
-
-## Parte 1: Fazendo Backup (Dump) do Banco Local para o Git
-
-**Passo 1: Preparar Permissões de Diretório (SEMPRE QUE TIVER ERROS DE PERMISSÃO USE)**
-
-No terminal, na raiz do projeto:
-```bash
-sudo chown -R $(id -u):$(id -g) ./neo4j
-```
-Isso é necessário devido a um problema de permissões que irá ser resolvido no futuro. 
-
-**Passo 2: Parar Neo4j**
-```bash
-sudo docker-compose stop neo4j
-```
-
-**Passo 3: Criar Dump**
-
-O nome do arquivo incluirá data/hora.
-```bash
-sudo docker-compose run --rm neo4j neo4j-admin database dump neo4j --to-stdout > ./neo4j/import/neo4j_backup_$(date +%Y%m%d_%H%M%S).dump
-```
-
-**Passo 4: Verificar Dump**
-```bash
-ls -lh ./neo4j/import/
-```
-
-**Passo 5: Adicionar ao Git e Enviar**
-Substitua `neo4j_backup_YYYYMMDD_HHMMSS.dump` pelo nome real do arquivo.
-```bash
-git add docker-compose.yml .gitignore ./neo4j/import/neo4j_backup_YYYYMMDD_HHMMSS.dump
-git commit -m "Adiciona backup Neo4j $(date +%d-%m-%Y)"
-git push
-```
-Ou apenas adicione pelo vscode. Caso não apareça em neo4j/imports, repita o sudo chown do inicio.
-
-**Passo 6: Reiniciar Neo4j (Local)**
-```bash
-sudo docker-compose start neo4j
-# ou: sudo docker-compose up -d
-```
-
-## Parte 2: Restaurando/Atualizando Banco Local a partir de um Dump do Git
-
-**Passo 1: Obter Atualizações do Repositório**
-```bash
-git pull
-```
-O arquivo de dump deverá estar em `./neo4j/import/`.
-
-**Passo 2: Parar Neo4j**
-
-Se uma instância Neo4j já estiver rodando:
-```bash
-sudo docker-compose stop neo4j
-```
-
-**Passo 3: Carregar Dados do Dump**
-
-Substitua `NOME_DO_ARQUIVO_DE_DUMP.dump` pelo nome real do arquivo.
-```bash
-sudo docker-compose run --rm neo4j neo4j-admin database load neo4j --from-path=/var/lib/neo4j/import/NOME_DO_ARQUIVO_DE_DUMP.dump --overwrite-destination=true
-```
-
-**Passo 4: Iniciar Neo4j com Dados Carregados**
-```bash
-sudo docker-compose up -d
-```
-Acesse em `http://localhost:7474`.
-
-## Observações sobre Permissões e `sudo`
-
-* Comandos usam `sudo`. Para evitar no Linux: `sudo usermod -aG docker $USER` (requer logout/login ou reboot).
-* Se problemas de permissão em `./neo4j/import` (ex: arquivos não visíveis no Git/VSCode):
-    ```bash
-    sudo chown -R $(id -u):$(id -g) ./neo4j
-    ```
-  Execute antes de criar dumps ou após `git pull` se necessário.
-
-
-## Com o Banco em Pé, rode no neo4j browser a seguinte linha de comando
-
-CREATE VECTOR INDEX `global-embedding-index` IF NOT EXISTS
-FOR (n:Searchable) ON (n.embedding)
-OPTIONS {
-  indexConfig: {
-    `vector.dimensions`: 1536,
-    `vector.similarity_function`: 'cosine'
-  }
-}
-
+```Cypher
 CREATE VECTOR INDEX chunk_embeddings IF NOT EXISTS
 FOR (c:Chunk) ON (c.embedding)
 OPTIONS {
@@ -275,11 +111,97 @@ OPTIONS {
     `vector.similarity_function`: 'cosine'
   }
 }
+```
 
-Ela serve para criar um índice global
+## 🏃 Fluxo de Execução (Reprodução do Benchmark)
 
-## Para verificar se funcionou rode:
+### Fase 1: Criação do Dataset de Avaliação (`web-scrapping`)
 
-## Caso precise subir o docker novamente com mudanças em plugins, etc
+O `wscrap_db` (porta 5433) é o *schema* central de onde todos os dados de avaliação serão puxados.
 
-sudo rm -rf ./neo4j/data/*
+1.  **Coleta de Notícias (Scraping):** Popula a tabela `scraping`.
+
+    ```bash
+    cd web-scrapping
+    python 1.scrapper_ge.py
+    ```
+
+2.  **Geração de Perguntas Simples:** Cria perguntas na tabela `perguntas`.
+
+    ```bash
+    python 2.make-questions.py
+    ```
+
+3.  **Geração de Embeddings e Respostas Padrão (Ground Truth):** Gera respostas e *embeddings* de referência para as perguntas simples.
+
+    ```bash
+    python 3.generate-embeddings-and-responses.py
+    ```
+
+4.  **Geração de P&R Complexas (Multi-Contexto e Rejeição Negativa):** Adiciona as perguntas mais complexas de avaliação, forçando a síntese de informação ou a recusa de resposta.
+
+    ```bash
+    python 4.generate_advanced_qa.py
+    ```
+
+### Fase 2: Ingestão de Conhecimento (RK)
+
+Os dados do `wscrap_db` são migrados e transformados nas bases de conhecimento de cada arquitetura.
+
+1.  **Ingestão Naive RAG:** Divide o texto em *chunks* e armazena com *embeddings*.
+
+    ```bash
+    cd ../naive-rag
+    python 1.generate_knowledge_base.py
+    ```
+
+2.  **Ingestão Advanced RAG:** Além dos *chunks*, gera e armazena resumos de documentos com *embeddings*.
+
+    ```bash
+    cd ../advanced-rag
+    python 1.generate_knowledge_base.py
+    ```
+
+3.  **Ingestão Graph RAG:** Transforma o texto em *chunks* e, usando LLM, em entidades e relacionamentos no Neo4j.
+
+    ```bash
+    cd ../graph-rag
+    python 1.generate_knowledge_base.py
+    ```
+
+### Fase 3: Execução e Avaliação do Pipeline
+
+Execute o script `2.evaluate_rag.py` em cada diretório. Ele buscará as perguntas, executará o pipeline RAG/Baseline, calculará as métricas (Similaridade, LLM Judge, RAGAS) e salvará os resultados na tabela `evaluation_results` do respectivo banco de dados.
+
+| Arquitetura | Comando de Avaliação |
+| :--- | :--- |
+| **Baseline (LLM Puro)** | `cd ../baseline-llm && python 2.evaluate_rag.py` |
+| **Naive RAG** | `cd ../naive-rag && python 2.evaluate_rag.py` |
+| **Advanced RAG** | `cd ../advanced-rag && python 2.evaluate_rag.py` |
+| **Graph RAG** | `cd ../graph-rag && python 2.evaluate_rag.py` |
+
+### Fase 4: Teste de Inferência e Análise
+
+#### Testes de Inferência Simples (Opcional):
+
+Execute para testar se a recuperação e a geração estão funcionando corretamente em cada arquitetura:
+
+```bash
+# Testar Naive RAG
+python naive-rag/inference.py
+
+# Testar Advanced RAG
+python advanced-rag/inference.py
+
+# Testar Graph RAG
+python graph-rag/inference.py
+```
+
+#### Análise do Dataset (Opcional):
+
+Gera gráficos e estatísticas sobre a distribuição e o conteúdo do conjunto de dados.
+
+```bash
+cd ../web-scrapping
+python 5.analyze_dataset.py
+```

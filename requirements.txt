@@ -1,0 +1,15 @@
+langchain 
+langchain-openai
+psycopg2-binary
+pgvector
+langchain-community
+langchain-chroma
+langchain-deepseek
+dotenv
+requests
+beautifulsoup4
+sentence-transformers
+cohere
+numpy
+ragas
+datasets

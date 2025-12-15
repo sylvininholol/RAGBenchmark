@@ -1,6 +1,50 @@
-# 🚀 Benchmark de Arquiteturas RAG para Notícias Esportivas
+# 🎓 Benchmark de RAG para Notícias Esportivas
 
 Este repositório contém a implementação e o *benchmark* de quatro arquiteturas de Geração Aumentada por Recuperação (**RAG**: *Retrieval Augmented Generation*) para um estudo de caso focado em informações factuais e dinâmicas (notícias esportivas). O projeto utiliza containers Docker (PostgreSQL/pgvector e Neo4j) e a API da OpenAI para execução e avaliação.
+
+---
+
+## 👨‍🎓 Informações Acadêmicas
+
+| Campo | Detalhe |
+| :--- | :--- |
+| **Título** | Benchmark de RAG para Notícias Esportivas
+| **Autores** | Gabriel Marinho de Souza e Sylvino Prevot de Oliveira Junior
+| **Orientador** | Prof. Filipe Braida do Carmo, D.Sc.
+| **Instituição** | UNIVERSIDADE FEDERAL RURAL DO RIO DE JANEIRO (UFRRJ)
+| **Departamento** | Instituto Multidisciplinar, Departamento de Ciência da Computação
+| **Curso** | Bacharel em Ciência da Computação
+| **Data** | Dezembro de 2025
+
+---
+
+## 📝 Resumo (Abstract)
+
+Os Large Language Models (\ac{LLM}) possuem limitações intrínsecas, como conhecimento estático e alucinações, que são críticas em domínios onde a informação necessária é majoritariamente factual e se torna obsoleta rapidamente, como o de notícias esportivas. O Retrieval-Augmented Generation (\ac{RAG}) surge como uma solução para conectar \ac{LLM}s a bases de conhecimento dinâmicas, mas a literatura carece de um *benchmark* que compare sistematicamente o desempenho das diferentes arquiteturas \ac{RAG} neste contexto. Este trabalho propõe e executa um *benchmark* para essa avaliação.
+
+Este trabalho introduz três contribuições: (1) um conjunto de dados personalizado, gerado a partir de notícias esportivas de setembro de 2025 para evitar contaminação de conhecimento, dividido em testes factuais, de integração de informação e de rejeição negativa; (2) o desenvolvimento e avaliação de quatro arquiteturas: Baseline, Naive RAG, Advanced RAG e Graph RAG; e (3) uma análise aprofundada de um *framework* de avaliação que utiliza métricas de *pipeline* (\ac{RAGAS}) e avaliação semântica (\ac{LLM} Judge) para dissecar os *trade-offs* de cada arquitetura.
+
+Os resultados demonstram que o Baseline (\ac{LLM} puro) é factualmente obsoleto, com uma pontuação média de qualidade factual de 1.4413 (em 5), embora obtenha uma pontuação de segurança perfeita (5.0). O Naive RAG oferece o ganho factual mais substancial, alcançando a maior pontuação de qualidade (2.7981), mas apresenta falhas de segurança (4.5333) O Graph RAG, o mais complexo, apresentou desempenho factual fraco (2.0952) indicando que a complexidade da modelagem pode introduzir pontos de falha no *pipeline* de recuperação. O Advanced RAG, utilizando sumarização e reordenação, obteve um desempenho factual (2.7175) comparável ao Naive RAG, mas destacou-se por ser a única arquitetura RAG a alcançar uma pontuação de segurança perfeita (5.0). Conclui-se que otimizações de *pipeline*, como a reordenação, oferecem o melhor equilíbrio entre desempenho factual, complexidade e confiabilidade para este domínio.
+
+---
+
+## 💻 Tecnologias Utilizadas
+
+O projeto foi construído utilizando os seguintes componentes e bibliotecas:
+
+* **Linguagem:** Python.
+* **Contêineres:** Docker, Docker Compose (para gerenciar ambientes de execução).
+* **Bancos de Dados:**
+    * PostgreSQL com extensão **pgvector** (para Naive, Advanced RAG e Scrapping DB).
+    * Neo4j (para a arquitetura Graph RAG).
+* **Modelos de Linguagem:**
+    * **Gerador/Juiz:** OpenAI GPT-3.5-turbo (e GPT-5-nano para LLM Judge).
+* **Embeddings/Recuperação:**
+    * OpenAI `text-embedding-3-small` (para todos os *embeddings* vetoriais).
+    * Cross-Encoder `ms-marco-MiniLM-L-6-v2` (para re-ranking no Advanced RAG).
+* **Frameworks/Bibliotecas:** LangChain, Ragas (para avaliação de métricas de *pipeline*), `psycopg2`, `requests`, `selenium`, `beautifulsoup4`, `numpy`, `datasets`.
+
+---
 
 ## 🗃️ Arquitetura do Projeto
 
